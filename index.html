@@ -226,13 +226,13 @@ audio{width:100%;border-radius:10px;accent-color:var(--cyan);}
   </div>
 
   <!-- Config error -->
-  <div id="config-banner">⚠️ &nbsp;HF Space URL set nahi. ⚙️ button click karo.</div>
+  <div id="config-banner">⚠️ &nbsp;Backend URL not configured.</div>
 
   <!-- Status -->
   <div class="status-wrap">
     <div class="status" id="status">
       <div class="dot idle" id="dot"></div>
-      <span id="status-text">HF Space URL configure karo ⚙️</span>
+      <span id="status-text">Connecting to backend…</span>
     </div>
   </div>
 
@@ -243,7 +243,7 @@ audio{width:100%;border-radius:10px;accent-color:var(--cyan);}
       <button class="btn-record" id="btn-rec" onclick="toggleRecord()">🎙️</button>
       <div class="record-info">
         <h3 id="rec-title">Tap to Record</h3>
-        <p id="rec-sub">Mic dabao, bolo, phir dobara dabao stop ke liye</p>
+        <p id="rec-sub">Click mic · speak · click again to stop</p>
       </div>
       <div class="timer" id="timer">0:00</div>
     </div>
@@ -253,8 +253,8 @@ audio{width:100%;border-radius:10px;accent-color:var(--cyan);}
       <div class="bar"></div><div class="bar"></div><div class="bar"></div>
     </div>
     <div class="upload-row">
-      <span style="font-size:12px;color:var(--muted);">Ya upload karo:</span>
-      <label>📎 &nbsp;File Choose karo
+      <span style="font-size:12px;color:var(--muted);">Or upload:</span>
+      <label>📎 &nbsp;Choose File
         <input type="file" id="file-upload" accept="audio/*" onchange="onFileUpload(event)"/>
       </label>
       <span class="upload-name" id="upload-name"></span>
@@ -276,11 +276,11 @@ audio{width:100%;border-radius:10px;accent-color:var(--cyan);}
     <div class="transcript-grid">
       <div>
         <div class="transcript-label">Your Speech</div>
-        <div class="transcript-box placeholder" id="txt-user">Aapke alfaaz yahan ayenge…</div>
+        <div class="transcript-box placeholder" id="txt-user">Your words will appear here…</div>
       </div>
       <div>
         <div class="transcript-label">Lyra's Response</div>
-        <div class="transcript-box placeholder" id="txt-ai">Lyra ka jawab yahan ayega…</div>
+        <div class="transcript-box placeholder" id="txt-ai">Lyra's reply will appear here…</div>
       </div>
     </div>
   </div>
@@ -288,7 +288,7 @@ audio{width:100%;border-radius:10px;accent-color:var(--cyan);}
   <!-- Audio output -->
   <div class="card">
     <div class="card-label">🔊 &nbsp;Voice Response</div>
-    <div class="audio-placeholder" id="audio-placeholder">🔊 &nbsp;Lyra ki awaaz yahan auto-play hogi…</div>
+    <div class="audio-placeholder" id="audio-placeholder">🔊 &nbsp;Lyra's voice will auto-play here…</div>
     <audio id="audio-out" controls style="display:none;"></audio>
   </div>
 
@@ -296,7 +296,7 @@ audio{width:100%;border-radius:10px;accent-color:var(--cyan);}
   <div class="card">
     <div class="card-label">💬 &nbsp;Conversation History</div>
     <div class="chat-log" id="chat-log">
-      <div class="empty-chat"><div style="font-size:26px;margin-bottom:8px;">🎙️</div>Aapki baat yahan dikhegi…</div>
+      <div class="empty-chat"><div style="font-size:26px;margin-bottom:8px;">🎙️</div>Your conversation will appear here…</div>
     </div>
   </div>
 
@@ -310,7 +310,7 @@ audio{width:100%;border-radius:10px;accent-color:var(--cyan);}
 <script>
 // ── State ─────────────────────────────────────────────────────────
 // ✅ HF Space URL — hardcoded (change if you redeploy)
-let spaceUrl     = "https://zara65724-Lyra-Voice-AI.hf.space";
+let spaceUrl     = "https://zara65724-lyra-voice-ai.hf.space";
 let mediaRecorder= null;
 let audioChunks  = [];
 let audioBlob    = null;
@@ -324,17 +324,18 @@ let isRecording  = false;
 window.addEventListener("load", () => { checkBackend(); });
 
 async function checkBackend() {
-  setStatus("⏳ Backend se connect ho raha hai…", "active");
+  setStatus("⏳ Connecting to HF Space backend…", "active");
   try {
-    const res = await fetch(spaceUrl + "/");
+    const res = await fetch(spaceUrl + "/health");
     if (res.ok) {
-      setStatus("✅ Connected — mic dabao aur bolo!", "ok");
+      const info = await res.json().catch(()=>({}));
+      setStatus("✅ Connected — " + (info.model||"backend ready") + " | Tap mic and speak!", "ok");
       document.getElementById("config-banner").style.display = "none";
     } else {
-      throw new Error("Non-200 response");
+      setStatus("⚠️ HF Space returned HTTP " + res.status + ". It may still be building — wait 30s and refresh.", "err");
     }
   } catch(e) {
-    setStatus("❌ Backend connect nahi hua. URL check karo in settings.", "err");
+    setStatus("⚠️ Cannot reach backend: " + e.message + " — HF Space may be starting. Wait and refresh.", "err");
     document.getElementById("config-banner").style.display = "block";
   }
 }
@@ -358,14 +359,14 @@ async function startRecording() {
       uploadedFile = null;
       document.getElementById("upload-name").textContent = "";
       stream.getTracks().forEach(t => t.stop());
-      setStatus("🎙️ Recording save ho gayi — ✨ Process dabao", "ok");
+      setStatus("🎙️ Recording saved — click ✨ Process Voice", "ok");
     };
     mediaRecorder.start();
     isRecording = true;
     document.getElementById("btn-rec").classList.add("recording");
     document.getElementById("btn-rec").textContent = "⏹️";
     document.getElementById("rec-title").textContent = "Recording…";
-    document.getElementById("rec-sub").textContent   = "Dobara dabao stop ke liye";
+    document.getElementById("rec-sub").textContent   = "Click again to stop";
     document.getElementById("waveform").classList.add("active");
     document.getElementById("timer").style.display = "block";
     timerSecs = 0;
@@ -374,9 +375,9 @@ async function startRecording() {
       const m = Math.floor(timerSecs/60), s = String(timerSecs%60).padStart(2,"0");
       document.getElementById("timer").textContent = `${m}:${s}`;
     }, 1000);
-    setStatus("🔴 Recording… ab bolo", "active");
+    setStatus("🔴 Recording… speak now", "active");
   } catch(e) {
-    setStatus("❌ Microphone access denied. Browser mein allow karo.", "err");
+    setStatus("❌ Microphone access denied. Please allow mic in your browser.", "err");
   }
 }
 
@@ -387,7 +388,7 @@ function stopRecording() {
   document.getElementById("btn-rec").classList.remove("recording");
   document.getElementById("btn-rec").textContent = "🎙️";
   document.getElementById("rec-title").textContent = "Tap to Record";
-  document.getElementById("rec-sub").textContent   = "Mic dabao, bolo, phir dobara dabao stop ke liye";
+  document.getElementById("rec-sub").textContent   = "Click mic · speak · click again to stop";
   document.getElementById("waveform").classList.remove("active");
   document.getElementById("timer").style.display = "none";
 }
@@ -398,14 +399,14 @@ window.onFileUpload = function(e) {
   uploadedFile = file;
   audioBlob    = null;
   document.getElementById("upload-name").textContent = "📎 " + file.name;
-  setStatus("📎 File select ho gayi — ✨ Process dabao", "ok");
+  setStatus("📎 File selected — click ✨ Process Voice", "ok");
 };
 
 // ── Main: call FastAPI /process ────────────────────────────────────
 window.processVoice = async function() {
   const source = audioBlob || uploadedFile;
-  if (!source)   { setStatus("⚠️ Pehle record karo ya file upload karo!", "err"); return; }
-  if (!spaceUrl) { setStatus("❌ HF Space URL set nahi. ⚙️ click karo.", "err"); return; }
+  if (!source)   { setStatus("⚠️ Please record audio or upload a file first!", "err"); return; }
+  if (!spaceUrl) { setStatus("❌ Backend not connected.", "err"); return; }
 
   setBusy(true);
   setStatus("⏳ Processing… Whisper → Groq → TTS", "active");
@@ -419,12 +420,29 @@ window.processVoice = async function() {
     form.append("audio",        audioFile);
     form.append("history_json", JSON.stringify(history));
 
-    // ── POST to FastAPI /process ──────────────────────────────────
-    const res  = await fetch(spaceUrl + "/process", { method: "POST", body: form });
-    const data = await res.json();
+    // POST to FastAPI /process endpoint on HF Space
+    let res;
+    try {
+      res = await fetch(spaceUrl + "/process", { method: "POST", body: form });
+    } catch(netErr) {
+      setStatus("❌ Cannot reach HF Space. Is it Running? Error: " + netErr.message, "err");
+      setBusy(false);
+      return;
+    }
 
-    if (data.error) {
-      setStatus("❌ " + data.error, "err");
+    // Parse response
+    let data;
+    try {
+      data = await res.json();
+    } catch(parseErr) {
+      const raw = await res.text().catch(()=>"");
+      setStatus("❌ Server returned non-JSON (status " + res.status + "): " + raw.slice(0,120), "err");
+      setBusy(false);
+      return;
+    }
+
+    if (!res.ok || data.error) {
+      setStatus("❌ " + (data.error || "HTTP " + res.status + " error"), "err");
       setBusy(false);
       return;
     }
@@ -446,13 +464,13 @@ window.processVoice = async function() {
       audio.play().catch(() => {});
     }
 
-    setStatus("✅ Lyra ne jawab de diya!", "ok");
+    setStatus("✅ Done! Lyra has responded.", "ok");
     audioBlob = uploadedFile = null;
     document.getElementById("upload-name").textContent = "";
 
   } catch(e) {
-    console.error(e);
-    setStatus("❌ API call fail hua — " + e.message, "err");
+    console.error("Unexpected error:", e);
+    setStatus("❌ Unexpected error: " + e.message, "err");
   }
   setBusy(false);
 };
@@ -461,16 +479,16 @@ window.processVoice = async function() {
 window.clearAll = function() {
   history = []; audioBlob = uploadedFile = null;
   document.getElementById("upload-name").textContent = "";
-  document.getElementById("txt-user").textContent = "Aapke alfaaz yahan ayenge…";
+  document.getElementById("txt-user").textContent = "Your words will appear here…";
   document.getElementById("txt-user").className = "transcript-box placeholder";
-  document.getElementById("txt-ai").textContent  = "Lyra ka jawab yahan ayega…";
+  document.getElementById("txt-ai").textContent  = "Lyra's reply will appear here…";
   document.getElementById("txt-ai").className  = "transcript-box placeholder";
   const a = document.getElementById("audio-out");
   a.style.display = "none"; a.src = "";
   document.getElementById("audio-placeholder").style.display = "flex";
   document.getElementById("chat-log").innerHTML =
-    '<div class="empty-chat"><div style="font-size:26px;margin-bottom:8px;">🎙️</div>Aapki baat yahan dikhegi…</div>';
-  setStatus("🗑️ Clear ho gaya — naya conversation shuru karo", "idle");
+    '<div class="empty-chat"><div style="font-size:26px;margin-bottom:8px;">🎙️</div>Your conversation will appear here…</div>';
+  setStatus("🗑️ Cleared — ready for new conversation", "idle");
 };
 
 // ── Helpers ───────────────────────────────────────────────────────
